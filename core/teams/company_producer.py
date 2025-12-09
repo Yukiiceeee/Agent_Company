@@ -14,10 +14,14 @@ from autogen_agentchat.messages import TextMessage
 from configs.roles import *
 # 统一的提示词在这里写入并传入
 from configs.prompts import (
-    PRODUCER_SALES_PROMPT,
-    PRODUCER_PRODUCT_PROMPT,
-    PRODUCER_TECH_PROMPT,
-    PRODUCER_CEO_PROMPT
+    PRODUCER_SALES_PROMPT_MATCH,
+    PRODUCER_PRODUCT_PROMPT_MATCH,
+    PRODUCER_TECH_PROMPT_MATCH,
+    PRODUCER_CEO_PROMPT_MATCH,
+    PRODUCER_SALES_PROMPT_INTERACTION,
+    PRODUCER_PRODUCT_PROMPT_INTERACTION,
+    PRODUCER_TECH_PROMPT_INTERACTION,
+    PRODUCER_CEO_PROMPT_INTERACTION
 )
 
 class ProducerTeamFactory_match:
@@ -38,25 +42,85 @@ class ProducerTeamFactory_match:
         
         sales_agent = AssistantAgent(
             name=f"Sales_Dept_{company.company_id}",
-            system_message=PRODUCER_SALES_PROMPT.format(**base_info),
+            system_message=PRODUCER_SALES_PROMPT_MATCH.format(**base_info),
             model_client=model_client,
         )
 
         product_agent = AssistantAgent(
             name=f"Product_Dept_{company.company_id}",
-            system_message=PRODUCER_PRODUCT_PROMPT.format(**base_info),
+            system_message=PRODUCER_PRODUCT_PROMPT_MATCH.format(**base_info),
             model_client=model_client,
         )
 
         tech_agent = AssistantAgent(
             name=f"Tech_Dept_{company.company_id}",
-            system_message=PRODUCER_TECH_PROMPT.format(**base_info),
+            system_message=PRODUCER_TECH_PROMPT_MATCH.format(**base_info),
             model_client=model_client,
         )
 
         ceo_agent = AssistantAgent(
             name=f"CEO_{company.company_id}",
-            system_message=PRODUCER_CEO_PROMPT.format(**base_info),
+            system_message=PRODUCER_CEO_PROMPT_MATCH.format(**base_info),
+            model_client=model_client,
+        )
+
+        participants = [
+            sales_agent, 
+            product_agent, 
+            tech_agent, 
+            ceo_agent
+        ]
+
+        # 定义终止条件 (Termination Condition)
+        # 条件 A: CEO 说出了 "TERMINATE" 关键词 (我们在 Prompt 里要求了)
+        text_termination = TextMentionTermination(text="TERMINATE")
+        # 条件 B: 防止死循环，设置最大轮数 (注意这里还包含一个user message)
+        max_msg_termination = MaxMessageTermination(max_messages=5)
+        
+        termination_condition = text_termination | max_msg_termination
+
+        team = RoundRobinGroupChat(
+            participants=participants,
+            termination_condition=termination_condition
+        )
+
+        return team
+    
+class ProducerTeamFactory_interaction:
+    @staticmethod
+    def create_team(company: Company, round_id: int, last_review_str: str, model_client) -> RoundRobinGroupChat:
+        base_info = {
+            "company_name": company.name,
+            "company_id": company.company_id,
+            "company_description": company.description,
+            "company_details":company.details,
+            "company_tags": ", ".join(company.tags),
+            "company_state": company.state.value,
+            "round_id": round_id,
+            "last_review_content": last_review_str if last_review_str else "这是第一轮，请根据原始需求文档开始设计。"
+        }
+        
+        sales_agent = AssistantAgent(
+            name=f"Sales_Dept_{company.company_id}",
+            system_message=PRODUCER_SALES_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
+
+        product_agent = AssistantAgent(
+            name=f"Product_Dept_{company.company_id}",
+            system_message=PRODUCER_PRODUCT_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
+
+        tech_agent = AssistantAgent(
+            name=f"Tech_Dept_{company.company_id}",
+            system_message=PRODUCER_TECH_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
+
+        ceo_agent = AssistantAgent(
+            name=f"CEO_{company.company_id}",
+            system_message=PRODUCER_CEO_PROMPT_INTERACTION.format(**base_info),
             model_client=model_client,
         )
 

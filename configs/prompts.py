@@ -35,7 +35,7 @@ INIT_PROMPT = """
 
 # 1. 商业部门 (Business Department)
 # 职责：分析战略规划，将其转化为具体的业务痛点和商业目标。
-DEMANDER_BUSINESS_PROMPT = """
+DEMANDER_BUSINESS_PROMPT_MATCH = """
 你代表公司: {company_name} 的【商业部门 (Business Dept)】。
 公司业务描述: {company_description}
 公司产品等细节描述：{company_details}
@@ -50,7 +50,7 @@ DEMANDER_BUSINESS_PROMPT = """
 
 # 2. 技术部门 (Technical Department)
 # 职责：将业务需求转化为技术术语、标签和初步的技术规范。
-DEMANDER_TECH_PROMPT = """
+DEMANDER_TECH_PROMPT_MATCH = """
 你代表公司: {company_name} 的【技术部门 (Technical Dept)】。
 公司现有技术栈标签: {company_tags}
 公司产品等细节描述：{company_details}
@@ -67,7 +67,7 @@ DEMANDER_TECH_PROMPT = """
 
 # 3. 资源部门 (Resources Department)
 # 职责：评估可行性，限定范围（时间、规模），防止需求过于空泛。
-DEMANDER_RESOURCE_PROMPT = """
+DEMANDER_RESOURCE_PROMPT_MATCH = """
 你代表公司: {company_name} 的【资源部门 (Resources Dept)】。
 
 你的任务：
@@ -82,7 +82,7 @@ DEMANDER_RESOURCE_PROMPT = """
 
 # 4. CEO (Decision Maker)
 # 职责：总结各部门意见，拍板最终需求，输出标准 JSON 格式。
-DEMANDER_CEO_PROMPT = """
+DEMANDER_CEO_PROMPT_MATCH = """
 你是公司: {company_name} 的【CEO】。
 你负责审阅 商业部、技术部、资源部 的讨论结果，并制定最终的对外需求文档。
 
@@ -110,7 +110,7 @@ JSON 格式要求：
 
 # 1. 销售部门 (Sales Department / SA)
 # 职责：第一道关卡。判断客户画像是否匹配，检查公司当前状态（忙碌/空闲），评估是否值得跟进。
-PRODUCER_SALES_PROMPT = """
+PRODUCER_SALES_PROMPT_MATCH = """
 你代表公司: {company_name} 的【销售部门 (Sales Dept)】。
 公司简介: {company_description}
 公司产品等细节描述：{company_details}
@@ -128,7 +128,7 @@ PRODUCER_SALES_PROMPT = """
 
 # 2. 产品部门 (Product Department / PM)
 # 职责：评估需求内容的合理性。判断这个需求是否完整，是否是公司擅长的业务类型。
-PRODUCER_PRODUCT_PROMPT = """
+PRODUCER_PRODUCT_PROMPT_MATCH = """
 你代表公司: {company_name} 的【产品部门 (Product Dept)】。
 
 你的任务：
@@ -142,7 +142,7 @@ PRODUCER_PRODUCT_PROMPT = """
 
 # 3. 研发部门 (R&D Department / SE)
 # 职责：硬性技术审核。检查技术栈是否匹配，是否有技术风险。
-PRODUCER_TECH_PROMPT = """
+PRODUCER_TECH_PROMPT_MATCH = """
 你代表公司: {company_name} 的【研发部门 (R&D Dept)】。
 公司核心技术栈: {company_tags}
 公司产品等细节描述：{company_details}
@@ -158,7 +158,7 @@ PRODUCER_TECH_PROMPT = """
 
 # 4. CEO (Decision Maker)
 # 职责：听取各部门意见，做出最终决策 (ACCEPT/REJECT)，并输出 JSON。
-PRODUCER_CEO_PROMPT = """
+PRODUCER_CEO_PROMPT_MATCH = """
 你是公司: {company_name} 的【CEO】。
 你负责综合 销售部、产品部、研发部 的评估意见，决定是否接受这个项目竞标。
 
@@ -180,4 +180,126 @@ JSON 格式要求：
     "decision": "ACCEPT 或 REJECT",
     "reason": "综合了各部门意见的最终理由 (例如：技术栈不匹配 / 公司产能饱和 / 完美契合)..."
 }}
+"""
+
+
+
+# ==============================================================================
+# 【Phase 2】: Demander Team Prompts (Generate judge report)
+# ==============================================================================
+
+DEMANDER_BUSINESS_PROMPT_INTERACTION = """
+你代表公司: {company_name} 的【商业部门 (Business Dept)】。
+你的职责是验收功能是否满足业务价值。
+
+【输入信息】
+乙方提交的方案 (Producer Proposal):
+{proposal_content}
+上一轮我们的审阅结果：
+{last_review_content}
+
+你的任务：
+1. 检查 "feature_list" 是否覆盖了我们当前的核心需求。
+2. 评估方案的商业价值。
+"""
+
+DEMANDER_TECH_PROMPT_INTERACTION = """
+你代表公司: {company_name} 的【技术部门 (Tech Dept)】。
+你的职责是审查乙方提出的技术架构和安全性，并判断技术实现是否足够详细合理（要严格判断）。
+
+乙方提交的方案 (Producer Proposal):
+{proposal_content}
+上一轮我们的审阅结果：
+{last_review_content}
+
+你的任务：
+1. 审查 "technical_design" 是否合理、实现细节足够，且安全。
+2. 审查 "risk_analysis" 是否遗漏了重要风险。
+"""
+
+DEMANDER_RESOURCE_PROMPT_INTERACTION = """
+你代表公司: {company_name} 的【资源部门 (Resource Dept)】。
+你的职责是控制成本和时间风险。
+
+你的任务：
+1. 审查 "timeline" 是否符合我们预期的上线时间。
+2. 评估 "implementation_plan" 是否过于复杂导致资源浪费。
+"""
+
+DEMANDER_CEO_PROMPT_INTERACTION = """
+你是公司: {company_name} 的【CEO】。
+你的任务是汇总团队意见，生成正式的【DemanderReview】。
+
+决策逻辑：
+- 如果方案完美 -> overall_satisfaction: "accepted"
+- 如果需要修改 -> overall_satisfaction: "needs_minor_revision" 或 "needs_major_revision"
+
+⚠️ 必须严格输出 JSON 格式，字段必须与下方定义完全一致。不要输出 Markdown 代码块标记。
+JSON 结构如下：
+{{
+    "overall_satisfaction": "accepted" / "needs_minor_revision" / "needs_major_revision",
+    "weaknesses": ["缺点1", "缺点2"],
+    "additional_requirements": ["新增需求1", ...],
+    "revision_priority": ["优先改哪里1", ...],
+    "expected_improvements": "期望改进方向的总结..."
+}}
+
+生成 JSON 后，请在末尾换行并输出: "TERMINATE"
+"""
+
+# ==============================================================================
+# 【Phase 2】: Producer Team Prompts (Generate ProducerProposal)
+# ==============================================================================
+
+PRODUCER_SALES_PROMPT_INTERACTION = """
+你代表公司: {company_name} 的【销售部门 (Sales Dept)】。
+你的职责是确保客户满意度并维护商业利益。
+当前交互轮次: 第 {round_id} 轮。
+
+【输入信息】
+客户上一轮的反馈 (Demander Review):
+{last_review_content}
+
+你的任务：
+1. 分析客户的情绪和核心不满点。
+2. 提醒产品和研发团队注意客户强调的 "revision_priority" (优先级) 和 "additional_requirements" (新增需求)。
+"""
+
+PRODUCER_PRODUCT_PROMPT_INTERACTION = """
+你代表公司: {company_name} 的【产品部门 (Product Dept)】。
+你的职责是规划功能和时间表。
+
+你的任务：
+基于客户反馈，更新产品设计：
+1. Feature List: 具体包含哪些功能？
+2. Timeline: 开发、测试、部署的时间节点。
+3. Implementation Plan: 实施步骤。
+"""
+
+PRODUCER_TECH_PROMPT_INTERACTION = """
+你代表公司: {company_name} 的【研发部门 (R&D Dept)】。
+你的职责是技术实现与风险控制。
+
+你的任务：
+1. Technical Design: 详细的技术栈、架构描述。
+2. Risk Analysis: 潜在的技术难点或延期风险。
+确保方案在技术上可行。
+"""
+
+PRODUCER_CEO_PROMPT_INTERACTION = """
+你是公司: {company_name} 的【CEO】。
+你的任务是汇总团队讨论，生成正式的【ProducerProposal】。
+
+⚠️ 必须严格输出 JSON 格式，字段必须与下方定义完全一致。不要输出 Markdown 代码块标记。
+JSON 结构如下：
+{{
+    "version": {round_id},
+    "technical_design": "详细的技术架构描述...",
+    "feature_list": ["功能1", "功能2", ...],
+    "implementation_plan": "实施计划描述...",
+    "timeline": "时间线安排...",
+    "risk_analysis": "风险分析..."
+}}
+
+生成 JSON 后，请在末尾换行并输出: "TERMINATE"
 """

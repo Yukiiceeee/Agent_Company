@@ -27,6 +27,24 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 GLOBAL_CONCURRENCY_LIMIT = 5
 
+class SimulationLogger:
+    def __init__(self, filename="../logs/simulation_phase2_match_log.txt"):
+        self.filename = filename
+        with open(self.filename, "w", encoding="utf-8") as f:
+            f.write(f"=== Simulation Started at {datetime.datetime.now()} ===\n\n")
+
+    def log_step(self, step_name: str, agent_name: str, content: str):
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        log_entry = (
+            f"[{timestamp}] === {step_name} ===\n"
+            f"👤 Agent: {agent_name}\n"
+            f"📝 Content:\n{content}\n"
+            f"{'-'*60}\n\n"
+        )
+        with open(self.filename, "a", encoding="utf-8") as f:
+            f.write(log_entry)
+        print(f"  [Log Saved] {step_name} - {agent_name}")
+
 class phase1_workflow:
     def __init__(self, model_client):
         self.model_client = model_client
@@ -287,24 +305,6 @@ class phase1_workflow:
             except Exception as e:
                 print(f"      ⚠️ Error parsing producer response: {e}")
                 self.logger.log_step("Error", producer.name, str(e))
-
-class SimulationLogger:
-    def __init__(self, filename="../logs/simulation_match_log.txt"):
-        self.filename = filename
-        with open(self.filename, "w", encoding="utf-8") as f:
-            f.write(f"=== Simulation Started at {datetime.datetime.now()} ===\n\n")
-
-    def log_step(self, step_name: str, agent_name: str, content: str):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        log_entry = (
-            f"[{timestamp}] === {step_name} ===\n"
-            f"👤 Agent: {agent_name}\n"
-            f"📝 Content:\n{content}\n"
-            f"{'-'*60}\n\n"
-        )
-        with open(self.filename, "a", encoding="utf-8") as f:
-            f.write(log_entry)
-        print(f"  [Log Saved] {step_name} - {agent_name}")
 
 if __name__ == "__main__":
     # 【待完善】这里应该是初始化阶段把所有Company定义好，然后统一传入

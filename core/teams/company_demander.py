@@ -12,12 +12,15 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
 
 from configs.roles import *
-# 统一的提示词在这里写入并传入
 from configs.prompts import (
-    DEMANDER_BUSINESS_PROMPT,
-    DEMANDER_TECH_PROMPT,
-    DEMANDER_RESOURCE_PROMPT,
-    DEMANDER_CEO_PROMPT
+    DEMANDER_BUSINESS_PROMPT_MATCH,
+    DEMANDER_TECH_PROMPT_MATCH,
+    DEMANDER_RESOURCE_PROMPT_MATCH,
+    DEMANDER_CEO_PROMPT_MATCH,
+    DEMANDER_BUSINESS_PROMPT_INTERACTION,
+    DEMANDER_TECH_PROMPT_INTERACTION,
+    DEMANDER_RESOURCE_PROMPT_INTERACTION,
+    DEMANDER_CEO_PROMPT_INTERACTION
 )
 
 class DemanderTeamFactory_match:
@@ -38,25 +41,25 @@ class DemanderTeamFactory_match:
 
         business_agent = AssistantAgent(
             name=f"Business_Dept_{company.company_id}",
-            system_message=DEMANDER_BUSINESS_PROMPT.format(**base_info),
+            system_message=DEMANDER_BUSINESS_PROMPT_MATCH.format(**base_info),
             model_client=model_client,
         )
 
         tech_agent = AssistantAgent(
             name=f"Tech_Dept_{company.company_id}",
-            system_message=DEMANDER_TECH_PROMPT.format(**base_info),
+            system_message=DEMANDER_TECH_PROMPT_MATCH.format(**base_info),
             model_client=model_client,
         )
 
         resource_agent = AssistantAgent(
             name=f"Resource_Dept_{company.company_id}",
-            system_message=DEMANDER_RESOURCE_PROMPT.format(**base_info),
+            system_message=DEMANDER_RESOURCE_PROMPT_MATCH.format(**base_info),
             model_client=model_client,
         )
 
         ceo_agent = AssistantAgent(
             name=f"CEO_{company.company_id}",
-            system_message=DEMANDER_CEO_PROMPT.format(**base_info),
+            system_message=DEMANDER_CEO_PROMPT_MATCH.format(**base_info),
             model_client=model_client,
         )
 
@@ -82,7 +85,65 @@ class DemanderTeamFactory_match:
 
         return team
 
+class DemanderTeamFactory_interaction:
+    @staticmethod
+    def create_team(company: Company, proposal_str: str, last_review_str: str, model_client) -> RoundRobinGroupChat:
+        base_info = {
+            "company_name": company.name,
+            "company_id": company.company_id,
+            "company_description": company.description,
+            "company_details": company.details,
+            "company_tags": ", ".join(company.tags),
+            "company_state": company.state.value,
+            "proposal_content": proposal_str,
+            "last_review_content": last_review_str if last_review_str else "这是第一轮，请根据当前交付方案开始审阅评估。"
+        }
 
+        business_agent = AssistantAgent(
+            name=f"Business_Dept_{company.company_id}",
+            system_message=DEMANDER_BUSINESS_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
+
+        tech_agent = AssistantAgent(
+            name=f"Tech_Dept_{company.company_id}",
+            system_message=DEMANDER_TECH_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
+
+        resource_agent = AssistantAgent(
+            name=f"Resource_Dept_{company.company_id}",
+            system_message=DEMANDER_RESOURCE_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
+
+        ceo_agent = AssistantAgent(
+            name=f"CEO_{company.company_id}",
+            system_message=DEMANDER_CEO_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
+
+        participants = [
+            business_agent, 
+            tech_agent, 
+            resource_agent, 
+            ceo_agent
+        ]
+
+        # 定义终止条件 (Termination Condition)
+        # 条件 A: CEO 说出了 "TERMINATE" 关键词 (我们在 Prompt 里要求了)
+        text_termination = TextMentionTermination(text="TERMINATE")
+        # 条件 B: 防止死循环，设置最大轮数 (注意这里还包含一个user message)
+        max_msg_termination = MaxMessageTermination(max_messages=5)
+
+        termination_condition = text_termination | max_msg_termination
+
+        team = RoundRobinGroupChat(
+            participants=participants,
+            termination_condition=termination_condition
+        )
+
+        return team
 
 class DemanderAgentFactory:
     @staticmethod
