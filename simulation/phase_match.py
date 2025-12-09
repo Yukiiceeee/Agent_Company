@@ -31,10 +31,10 @@ class SimulationLogger:
     def __init__(self, filename="../logs/simulation_phase2_match_log.txt"):
         self.filename = filename
         with open(self.filename, "w", encoding="utf-8") as f:
-            f.write(f"=== Simulation Started at {datetime.datetime.now()} ===\n\n")
+            f.write(f"=== Simulation Started at {datetime.now()} ===\n\n")
 
     def log_step(self, step_name: str, agent_name: str, content: str):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now().strftime("%H:%M:%S")
         log_entry = (
             f"[{timestamp}] === {step_name} ===\n"
             f"👤 Agent: {agent_name}\n"
@@ -109,7 +109,9 @@ class phase1_workflow:
             print(f"   ❌ [Flow End] {demander.name}: No project generated.")
             return
         
-        rec_sys = RecommendationSystem(all_producers)
+        # 只有当producer的状态不为busy时才可以参与竞标
+        active_producers = [p for p in all_producers if p.state != CompanyState.BUSY]
+        rec_sys = RecommendationSystem(active_producers)
         candidates = rec_sys.recommend(active_project, top_k=3)
 
         if not candidates:
@@ -147,6 +149,8 @@ class phase1_workflow:
                 decision_data = extract_json(clean_content)
                 
                 if decision_data.get("decision") == "ACCEPT":
+                    # 这里将当前producer设为busy
+                    producer.state = CompanyState.BUSY
                     reason = decision_data.get('reason')
                     print(f"      ✅ {producer.name} Accepted!")
                     return {
@@ -184,7 +188,7 @@ class phase1_workflow:
                 raise ValueError("JSON parsing failed")
 
             project = ActiveProject(
-                project_id=project_data.get("project_id", f"{demander.company_id}_{datetime.datetime.now().timestamp()}"),
+                project_id=project_data.get("project_id", f"{demander.company_id}_{datetime.now().timestamp()}"),
                 project_content=project_data.get("project_content", ""),
                 type=project_data.get("type", "General"),
                 tags=project_data.get("tags", []),
@@ -227,6 +231,9 @@ class phase1_workflow:
         print(f"      ✅ {demander.name} received {len(accepted_results)} offers. Chose: {best_match['producer_name']}")
         return best_match
     
+
+
+
     async def _process_demander_proposal_demo(self, demander: Company) -> ActiveProject:
         try:
             demander_team = DemanderTeamFactory_match.create_team(demander, self.model_client)
@@ -243,7 +250,7 @@ class phase1_workflow:
                 raise ValueError("JSON parsing failed")
 
             project = ActiveProject(
-                project_id=project_data.get("project_id", f"{demander.company_id}_{datetime.datetime.now().timestamp()}"),
+                project_id=project_data.get("project_id", f"{demander.company_id}_{datetime.now().timestamp()}"),
                 project_content=project_data.get("project_content", ""),
                 type=project_data.get("type", "General"),
                 tags=project_data.get("tags", []),
