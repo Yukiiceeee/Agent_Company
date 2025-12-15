@@ -12,6 +12,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
 from api import MODEL_CLIENT
 from api import JSON_MODEL_CLIENT
+from core.teams.team import ParallelTeam
 
 from configs.roles import *
 from configs.prompts import (
@@ -111,17 +112,17 @@ class DemanderTeamFactory_interaction:
             model_client=model_client,
         )
 
-        # tech_agent = AssistantAgent(
-        #     name=f"Tech_Dept_{company.company_id}",
-        #     system_message=DEMANDER_TECH_PROMPT_INTERACTION.format(**base_info),
-        #     model_client=model_client,
-        # )
+        tech_agent = AssistantAgent(
+            name=f"Tech_Dept_{company.company_id}",
+            system_message=DEMANDER_TECH_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
 
-        # resource_agent = AssistantAgent(
-        #     name=f"Resource_Dept_{company.company_id}",
-        #     system_message=DEMANDER_RESOURCE_PROMPT_INTERACTION.format(**base_info),
-        #     model_client=model_client,
-        # )
+        resource_agent = AssistantAgent(
+            name=f"Resource_Dept_{company.company_id}",
+            system_message=DEMANDER_RESOURCE_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
 
         ceo_agent = AssistantAgent(
             name=f"CEO_{company.company_id}",
@@ -131,8 +132,8 @@ class DemanderTeamFactory_interaction:
 
         participants = [
             business_agent, 
-            # tech_agent, 
-            # resource_agent, 
+            tech_agent, 
+            resource_agent, 
             ceo_agent
         ]
 
@@ -140,13 +141,18 @@ class DemanderTeamFactory_interaction:
         # 条件 A: CEO 说出了 "TERMINATE" 关键词 (暂废除)
         text_termination = TextMentionTermination(text="TERMINATE")
         # 条件 B: 防止死循环，设置最大轮数 (注意这里还包含一个user message)
-        max_msg_termination = MaxMessageTermination(max_messages=3)
+        max_msg_termination = MaxMessageTermination(max_messages=5)
 
         termination_condition = max_msg_termination
 
-        team = RoundRobinGroupChat(
-            participants=participants,
-            termination_condition=termination_condition
+        # team = RoundRobinGroupChat(
+        #     participants=participants,
+        #     termination_condition=termination_condition
+        # )
+
+        team = ParallelTeam(
+            consultants=[business_agent, tech_agent, resource_agent], 
+            ceo=ceo_agent
         )
 
         return team

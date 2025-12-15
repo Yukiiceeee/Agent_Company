@@ -27,6 +27,7 @@ class ActiveProject(BaseModel):
     project_content: str = Field(..., description="项目详细需求")
     type: str = Field(..., description="项目类型(例如 WebDev、AI)")      
     tags: List[str] = Field(default_factory=list, description="所需技术标签")
+    # weeks: int = Field(..., description="项目所需时间(周)")
 
 class ProducerDecision(BaseModel):
     decision: str = Field(..., description="ACCEPT or REJECT")

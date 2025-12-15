@@ -98,12 +98,12 @@ DEMANDER_CEO_PROMPT_MATCH = """
 1. 最后一条回复必须且仅包含一个标准的 JSON 对象。
 2. 不要包含 Markdown 格式标记（如 ```json），不要包含其他废话。
 
-JSON 格式要求：
+JSON 格式要求例子：
 {{
     "project_id": "{company_id}_p01",
     "project_content": "综合了商业目标、技术要求和资源限制的详细需求描述 (150字左右)...",
     "type": "项目类型 (e.g. AI, Web, Data)",
-    "tags": ["Tag1", "Tag2", "Tag3"]
+    "tags": ["Tag1", "Tag2", "Tag3"],
 }}
 """
 
@@ -210,6 +210,7 @@ DEMANDER_TECH_PROMPT_INTERACTION = """
 你代表公司: {company_name} 的【技术部门 (Tech Dept)】。
 你的职责是审查乙方提出的技术架构和安全性，并判断技术实现是否足够详细合理（要严格判断）。
 
+【输入信息】
 乙方提交的方案 (Producer Proposal):
 {proposal_content}
 上一轮我们的审阅结果：
@@ -223,6 +224,12 @@ DEMANDER_TECH_PROMPT_INTERACTION = """
 DEMANDER_RESOURCE_PROMPT_INTERACTION = """
 你代表公司: {company_name} 的【资源部门 (Resource Dept)】。
 你的职责是控制成本和时间风险。
+
+【输入信息】
+乙方提交的方案 (Producer Proposal):
+{proposal_content}
+上一轮我们的审阅结果：
+{last_review_content}
 
 你的任务：
 1. 审查 "timeline" 是否符合我们预期的上线时间。
@@ -255,7 +262,6 @@ JSON 结构如下：
 PRODUCER_SALES_PROMPT_INTERACTION = """
 你代表公司: {company_name} 的【销售部门 (Sales Dept)】。
 你的职责是确保客户满意度并维护商业利益。
-当前交互轮次: 第 {round_id} 轮。
 
 【输入信息】
 客户上一轮的反馈 (Demander Review):
@@ -270,6 +276,10 @@ PRODUCER_PRODUCT_PROMPT_INTERACTION = """
 你代表公司: {company_name} 的【产品部门 (Product Dept)】。
 你的职责是规划功能和时间表。
 
+【输入信息】
+客户上一轮的反馈 (Demander Review):
+{last_review_content}
+
 你的任务：
 基于客户反馈，更新产品设计：
 1. Feature List: 具体包含哪些功能？
@@ -281,6 +291,10 @@ PRODUCER_TECH_PROMPT_INTERACTION = """
 你代表公司: {company_name} 的【研发部门 (R&D Dept)】。
 你的职责是技术实现与风险控制。
 
+【输入信息】
+客户上一轮的反馈 (Demander Review):
+{last_review_content}
+
 你的任务：
 1. Technical Design: 详细的技术栈、架构描述。
 2. Risk Analysis: 潜在的技术难点或延期风险。
@@ -289,6 +303,7 @@ PRODUCER_TECH_PROMPT_INTERACTION = """
 
 PRODUCER_CEO_PROMPT_INTERACTION = """
 你是公司: {company_name} 的【CEO】。
+当前交互轮次: 第 {round_id} 轮。
 你的任务是汇总团队讨论，生成正式的【ProducerProposal】。
 
 ⚠️ 必须严格输出 JSON 格式，字段必须与下方定义完全一致。不要输出 Markdown 代码块标记。

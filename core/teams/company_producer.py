@@ -12,6 +12,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
 from api import MODEL_CLIENT
 from api import JSON_MODEL_CLIENT
+from core.teams.team import ParallelTeam
 
 from configs.roles import *
 # 统一的提示词在这里写入并传入
@@ -83,9 +84,14 @@ class ProducerTeamFactory_match:
         
         termination_condition = max_msg_termination
 
-        team = RoundRobinGroupChat(
-            participants=participants,
-            termination_condition=termination_condition
+        # team = RoundRobinGroupChat(
+        #     participants=participants,
+        #     termination_condition=termination_condition
+        # )
+
+        team = ParallelTeam(
+            consultants=[sales_agent, tech_agent, product_agent], 
+            ceo=ceo_agent
         )
 
         return team
@@ -112,17 +118,17 @@ class ProducerTeamFactory_interaction:
             model_client=model_client,
         )
 
-        # product_agent = AssistantAgent(
-        #     name=f"Product_Dept_{company.company_id}",
-        #     system_message=PRODUCER_PRODUCT_PROMPT_INTERACTION.format(**base_info),
-        #     model_client=model_client,
-        # )
+        product_agent = AssistantAgent(
+            name=f"Product_Dept_{company.company_id}",
+            system_message=PRODUCER_PRODUCT_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
 
-        # tech_agent = AssistantAgent(
-        #     name=f"Tech_Dept_{company.company_id}",
-        #     system_message=PRODUCER_TECH_PROMPT_INTERACTION.format(**base_info),
-        #     model_client=model_client,
-        # )
+        tech_agent = AssistantAgent(
+            name=f"Tech_Dept_{company.company_id}",
+            system_message=PRODUCER_TECH_PROMPT_INTERACTION.format(**base_info),
+            model_client=model_client,
+        )
 
         ceo_agent = AssistantAgent(
             name=f"CEO_{company.company_id}",
@@ -141,7 +147,7 @@ class ProducerTeamFactory_interaction:
         # 条件 A: CEO 说出了 "TERMINATE" 关键词 (暂废除)
         text_termination = TextMentionTermination(text="TERMINATE")
         # 条件 B: 防止死循环，设置最大轮数 (注意这里还包含一个user message)
-        max_msg_termination = MaxMessageTermination(max_messages=3)
+        max_msg_termination = MaxMessageTermination(max_messages=5)
         
         termination_condition = max_msg_termination
 
@@ -151,6 +157,15 @@ class ProducerTeamFactory_interaction:
         )
 
         return team
+
+
+
+
+
+
+
+
+
 
 
 class ProducerAgentFactory:

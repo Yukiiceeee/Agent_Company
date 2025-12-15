@@ -17,11 +17,11 @@ MODEL_INFO = {
     "structured_output": False,
 }
 MODEL_CLIENT = OpenAIChatCompletionClient(
-    model="glm-4.6",
+    model="glm-4.5",
     api_key=ZHIPU_API_KEY,
     base_url="https://open.bigmodel.cn/api/paas/v4/",
     model_info=MODEL_INFO,
-    max_retries=5,
+    max_retries=3,
     timeout=120,
     extra_body={
         "thinking": {
@@ -30,11 +30,11 @@ MODEL_CLIENT = OpenAIChatCompletionClient(
     }
 )
 JSON_MODEL_CLIENT = OpenAIChatCompletionClient(
-    model="glm-4.6", 
+    model="glm-4.5", 
     api_key=ZHIPU_API_KEY,
     base_url="https://open.bigmodel.cn/api/paas/v4/",
     model_info={**MODEL_INFO, "json_output": True}, 
-    max_retries=5,
+    max_retries=3,
     response_format={"type": "json_object"}, 
     extra_body={
         "thinking": {
