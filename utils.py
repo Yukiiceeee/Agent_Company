@@ -1,10 +1,12 @@
 import json
 import re
 from typing import Dict, List, Set
+from pydantic import ValidationError
 
 def extract_json(text: str) -> Dict:
     try:
-        return json.loads(text)
+        clean_text = text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_text)
     except json.JSONDecodeError:
         pass
 

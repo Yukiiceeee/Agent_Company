@@ -12,7 +12,7 @@ from api import call_glm
 from api import async_call_glm
 from utils import extract_json
 
-CONCURRENCY_LIMIT = 10
+CONCURRENCY_LIMIT = 5
 
 async def async_create_company_instance(info, semaphore):
     async with semaphore:
@@ -32,7 +32,7 @@ async def async_create_company_instance(info, semaphore):
         
         try:
             print(f"⏳ 开始生成: {name}...") 
-            llm_response = await async_call_glm(prompt)
+            llm_response = await async_call_glm(prompt, schema=CompanyInfo)
             print(f"🤖 LLM 回答: {llm_response}")
             
             ai_data = extract_json(llm_response)
@@ -41,21 +41,19 @@ async def async_create_company_instance(info, semaphore):
                 raise ValueError("LLM 返回无法解析为 JSON")
 
             tags = ai_data.get("tags", [])
-            role_str = ai_data.get("role")
-            if "Demander" in role_str:
+            strategy_content = ai_data.get("strategy_content", "")
+            current_role_str = ai_data.get("current_role", "Producer")
+
+            # 所有企业都生成战略规划
+            if not strategy_content:
+                strategy_content = "企业发展与技术合作规划。"
+            strategy = StrategicPlan(content=strategy_content)
+
+            # 根据current_role判断当前轮次的角色
+            if "Demander" in current_role_str:
                 role = CompanyRole.DEMANDER
             else:
-                role = CompanyRole.PRODUCER
-                
-            strategy_content = ai_data.get("strategy_content", "")
-            strategy = None
-            
-            if role == CompanyRole.DEMANDER:
-                if not strategy_content:
-                    strategy_content = "寻求业务数字化升级与技术合作。"
-                strategy = StrategicPlan(content=strategy_content)
-            else:
-                strategy = None 
+                role = CompanyRole.PRODUCER 
 
             company = Company(
                 company_id=str(company_id),
@@ -120,7 +118,7 @@ def create_company_instance(info):
     prompt = INIT_PROMPT.format(**init_info)
     
     try:
-        llm_response = call_glm(prompt)
+        llm_response = call_glm(prompt, schema=CompanyInfo)
         print(f"🤖 LLM 回答: {llm_response}")
         
         ai_data = extract_json(llm_response)
@@ -129,21 +127,19 @@ def create_company_instance(info):
             raise ValueError("LLM 返回无法解析为 JSON")
 
         tags = ai_data.get("tags", [])
-        role_str = ai_data.get("role")
-        if "Demander" in role_str:
+        strategy_content = ai_data.get("strategy_content", "")
+        current_role_str = ai_data.get("current_role", "Producer")
+
+        # 所有企业都生成战略规划
+        if not strategy_content:
+            strategy_content = "企业发展与技术合作规划。"
+        strategy = StrategicPlan(content=strategy_content)
+
+        # 根据current_role判断当前轮次的角色
+        if "Demander" in current_role_str:
             role = CompanyRole.DEMANDER
         else:
-            role = CompanyRole.PRODUCER
-            
-        strategy_content = ai_data.get("strategy_content", "")
-        strategy = None
-        
-        if role == CompanyRole.DEMANDER:
-            if not strategy_content:
-                strategy_content = "寻求业务数字化升级与技术合作。"
-            strategy = StrategicPlan(content=strategy_content)
-        else:
-            strategy = None 
+            role = CompanyRole.PRODUCER 
 
         company = Company(
             company_id=str(company_id),

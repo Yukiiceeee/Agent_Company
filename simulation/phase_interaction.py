@@ -16,6 +16,7 @@ from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 
 from utils import extract_json
+from utils_logger import *
 from api import MODEL_CLIENT
 from configs.roles import *
 from group.agents.assistant_agent import AssistantAgent
@@ -25,6 +26,7 @@ from core.teams.company_producer import ProducerTeamFactory_interaction
 
 GLOBAL_CONCURRENCY_LIMIT = 5
 MAX_ROUNDS = 3
+logger = LOGGER
 
 class InteractionLogger:
     """交互阶段专用日志"""
@@ -126,6 +128,8 @@ class phase2_workflow:
             demander = self.company_map[match['demander_id']]
             producer = self.company_map[match['producer_id']]
             project_data = match['project']
+
+            console.rule(f"[bold magenta]Start Interaction: {demander.name} ⚔️ {producer.name}[/]")
             
             history = InteractionHistory(
                 demander_id=demander.company_id,
@@ -141,14 +145,15 @@ class phase2_workflow:
             last_review_content = ""
             
             for round_idx in range(1, MAX_ROUNDS + 1):
-                print(f"  ⏱️ [Round {round_idx}] {demander.name} <-> {producer.name}")
+                console.print(f"\n[bold yellow]--- Round {round_idx} ---[/]")
                 
                 try:
                     # ==========================================================
                     # Step 1: Producer 生成方案 (ProducerProposal)
                     # ==========================================================
+                    logger.log_event(producer.name, "Action", f"Drafting Proposal V{round_idx}...")
                     producer_team = ProducerTeamFactory_interaction.create_team(
-                        producer, round_idx, last_review_content, self.model_client
+                        producer, round_idx, last_review_content
                     )
                     
                     p_task_input = (
@@ -159,6 +164,7 @@ class phase2_workflow:
                     
                     p_res = await producer_team.run(task=p_task_input)
                     p_raw = p_res.messages[-1].content
+                    logger.log_llm_content(producer.name, p_raw, title=f"Proposal V{round_idx}")
                     self.logger.log_step(f"R{round_idx} Producer Output", producer.name, p_raw)
                     
                     p_json = extract_json(p_raw.replace("TERMINATE", "").strip())
@@ -177,16 +183,18 @@ class phase2_workflow:
                     # ==========================================================
                     # Step 2: Demander 审阅方案 (DemanderReview)
                     # ==========================================================
+                    logger.log_event(demander.name, "Action", "Reviewing Proposal...")
                     proposal_str_for_review = json.dumps(p_json, ensure_ascii=False, indent=2)
                     
                     demander_team = DemanderTeamFactory_interaction.create_team(
-                        demander, proposal_str_for_review, last_review_content, self.model_client
+                        demander, proposal_str_for_review, last_review_content
                     )
                     
                     d_task_input = f"请审阅乙方提交的第 {round_idx} 版方案，并给出 JSON 格式的反馈。"
                     
                     d_res = await demander_team.run(task=d_task_input)
                     d_raw = d_res.messages[-1].content
+                    logger.log_llm_content(demander.name, d_raw, title=f"Review V{round_idx}")
                     self.logger.log_step(f"R{round_idx} Demander Output", demander.name, d_raw)
                     
                     d_json = extract_json(d_raw.replace("TERMINATE", "").strip())
@@ -224,8 +232,11 @@ class phase2_workflow:
                     if status == "accepted":
                         history.final_status = "success"
                         history.final_proposal = proposal_obj
+                        logger.log_success(f"Deal Reached in Round {round_idx}!")
                         print(f"    🎉 Success! {demander.name} accepted the proposal.")
                         break
+                    else:
+                        logger.log_event(demander.name, "Feedback", "Requesting Revisions", color="yellow")
                     
                     if round_idx == MAX_ROUNDS:
                         history.final_status = "failure"

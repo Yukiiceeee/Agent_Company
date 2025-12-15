@@ -15,6 +15,7 @@ from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 
 from utils import extract_json
+from utils_logger import LOGGER
 from api import MODEL_CLIENT
 from configs.roles import *
 from core.market import *
@@ -26,6 +27,7 @@ from group.agents.assistant_agent import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 GLOBAL_CONCURRENCY_LIMIT = 5
+logger = LOGGER
 
 class SimulationLogger:
     def __init__(self, filename="../logs/simulation_phase2_match_log.txt"):
@@ -53,6 +55,7 @@ class phase1_workflow:
         self.semaphore = asyncio.Semaphore(GLOBAL_CONCURRENCY_LIMIT)
 
     async def run_simulation(self, all_companies: List[Company]):
+        logger.log_header("Phase 1: Demand & Match Simulation")
         demanders = [c for c in all_companies if c.role == CompanyRole.DEMANDER]
         producers = [c for c in all_companies if c.role == CompanyRole.PRODUCER]
 
@@ -98,6 +101,24 @@ class phase1_workflow:
         end_time = time.time()
         print(f"Total Time: {end_time - start_time:.2f} seconds")
         self.logger.log_step("Phase 1 Time", "System", f"{end_time - start_time:.2f} seconds")
+    
+        logger.log_header("Match Results Summary")
+        if self.matched_list:
+            rows = []
+            for m in self.matched_list:
+                rows.append([
+                    m['demander_name'], 
+                    m['producer_name'], 
+                    m['project']['type'], 
+                    f"{m['score']:.2f}"
+                ])
+            logger.log_table(
+                title="Final Match Pairs", 
+                columns=["Demander", "Producer", "Project Type", "Match Score"],
+                rows=rows
+            )
+        else:
+            logger.log_error("No matches formed in this simulation.")
 
         return self.matched_list
     
@@ -133,7 +154,7 @@ class phase1_workflow:
         
         async with self.semaphore:
             try:
-                producer_team = ProducerTeamFactory_match.create_team(producer, self.model_client)
+                producer_team = ProducerTeamFactory_match.create_team(producer)
                 
                 rfp_message = json.dumps({
                     "project_content": project.project_content,
@@ -174,12 +195,14 @@ class phase1_workflow:
     async def _process_demander_proposal(self, demander: Company) -> Optional[ActiveProject]:
         try:
             # print(f"   ⚡ Generating Proposal for {demander.name}...")
-            demander_team = DemanderTeamFactory_match.create_team(demander, self.model_client)
+            logger.log_event(demander.name, "Start", "Generating Project Proposal...", color="cyan")
+            demander_team = DemanderTeamFactory_match.create_team(demander)
             plan_input = f"Current Strategy Plan: {demander.strategy.content}"
             
             result = await demander_team.run(task=plan_input)
             
             last_message_content = result.messages[-1].content
+            logger.log_llm_content(demander.name, last_message_content, title="Proposal Draft")
             self.logger.log_step("Demander Team Discussion", demander.name, last_message_content)
             clean_content = last_message_content.replace("TERMINATE", "").strip()
             project_data = extract_json(clean_content)
@@ -194,6 +217,7 @@ class phase1_workflow:
                 tags=project_data.get("tags", []),
             )
             print(f"   📝 [Project Ready] {demander.name}: {project.tags}")
+            logger.log_success(f"Project Generated: {project.tags}")
             return project
             
         except Exception as e:
@@ -236,7 +260,7 @@ class phase1_workflow:
 
     async def _process_demander_proposal_demo(self, demander: Company) -> ActiveProject:
         try:
-            demander_team = DemanderTeamFactory_match.create_team(demander, self.model_client)
+            demander_team = DemanderTeamFactory_match.create_team(demander)
             plan_input = f"Current Strategy Plan: {demander.strategy.content}"
             
             result = await demander_team.run(task=plan_input)
@@ -275,7 +299,7 @@ class phase1_workflow:
             score = cand["total_score"]
             print(f"   👉 Asking Candidate: {producer.name} (Matched Score: {score})")
             
-            producer_team = ProducerTeamFactory_match.create_team(producer, self.model_client)
+            producer_team = ProducerTeamFactory_match.create_team(producer)
             
             rfp_message = json.dumps({
                 "project_content": project.project_content,

@@ -10,6 +10,8 @@ from group.group_chat.round_robin_group_chat import RoundRobinGroupChat
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
+from api import MODEL_CLIENT
+from api import JSON_MODEL_CLIENT
 
 from configs.roles import *
 # 统一的提示词在这里写入并传入
@@ -26,11 +28,13 @@ from configs.prompts import (
 
 class ProducerTeamFactory_match:
     @staticmethod
-    def create_team(company: Company, model_client) -> RoundRobinGroupChat:
+    def create_team(company: Company) -> RoundRobinGroupChat:
         """
         创建一个包含 Sales, Product, Tech, CEO 四个角色的轮询工作流团队。
         用于 Phase 1 的竞标决策。
         """
+        model_client = MODEL_CLIENT
+        json_model_client = JSON_MODEL_CLIENT
         base_info = {
             "company_name": company.name,
             "company_id": company.company_id,
@@ -61,7 +65,7 @@ class ProducerTeamFactory_match:
         ceo_agent = AssistantAgent(
             name=f"CEO_{company.company_id}",
             system_message=PRODUCER_CEO_PROMPT_MATCH.format(**base_info),
-            model_client=model_client,
+            model_client=json_model_client,
         )
 
         participants = [
@@ -72,12 +76,12 @@ class ProducerTeamFactory_match:
         ]
 
         # 定义终止条件 (Termination Condition)
-        # 条件 A: CEO 说出了 "TERMINATE" 关键词 (我们在 Prompt 里要求了)
+        # 条件 A: CEO 说出了 "TERMINATE" 关键词 (暂废除)
         text_termination = TextMentionTermination(text="TERMINATE")
         # 条件 B: 防止死循环，设置最大轮数 (注意这里还包含一个user message)
         max_msg_termination = MaxMessageTermination(max_messages=5)
         
-        termination_condition = text_termination | max_msg_termination
+        termination_condition = max_msg_termination
 
         team = RoundRobinGroupChat(
             participants=participants,
@@ -88,7 +92,9 @@ class ProducerTeamFactory_match:
     
 class ProducerTeamFactory_interaction:
     @staticmethod
-    def create_team(company: Company, round_id: int, last_review_str: str, model_client) -> RoundRobinGroupChat:
+    def create_team(company: Company, round_id: int, last_review_str: str) -> RoundRobinGroupChat:
+        model_client = MODEL_CLIENT
+        json_model_client = JSON_MODEL_CLIENT
         base_info = {
             "company_name": company.name,
             "company_id": company.company_id,
@@ -106,38 +112,38 @@ class ProducerTeamFactory_interaction:
             model_client=model_client,
         )
 
-        product_agent = AssistantAgent(
-            name=f"Product_Dept_{company.company_id}",
-            system_message=PRODUCER_PRODUCT_PROMPT_INTERACTION.format(**base_info),
-            model_client=model_client,
-        )
+        # product_agent = AssistantAgent(
+        #     name=f"Product_Dept_{company.company_id}",
+        #     system_message=PRODUCER_PRODUCT_PROMPT_INTERACTION.format(**base_info),
+        #     model_client=model_client,
+        # )
 
-        tech_agent = AssistantAgent(
-            name=f"Tech_Dept_{company.company_id}",
-            system_message=PRODUCER_TECH_PROMPT_INTERACTION.format(**base_info),
-            model_client=model_client,
-        )
+        # tech_agent = AssistantAgent(
+        #     name=f"Tech_Dept_{company.company_id}",
+        #     system_message=PRODUCER_TECH_PROMPT_INTERACTION.format(**base_info),
+        #     model_client=model_client,
+        # )
 
         ceo_agent = AssistantAgent(
             name=f"CEO_{company.company_id}",
             system_message=PRODUCER_CEO_PROMPT_INTERACTION.format(**base_info),
-            model_client=model_client,
+            model_client=json_model_client,
         )
 
         participants = [
             sales_agent, 
-            product_agent, 
-            tech_agent, 
+            # product_agent, 
+            # tech_agent, 
             ceo_agent
         ]
 
         # 定义终止条件 (Termination Condition)
-        # 条件 A: CEO 说出了 "TERMINATE" 关键词 (我们在 Prompt 里要求了)
+        # 条件 A: CEO 说出了 "TERMINATE" 关键词 (暂废除)
         text_termination = TextMentionTermination(text="TERMINATE")
         # 条件 B: 防止死循环，设置最大轮数 (注意这里还包含一个user message)
-        max_msg_termination = MaxMessageTermination(max_messages=5)
+        max_msg_termination = MaxMessageTermination(max_messages=3)
         
-        termination_condition = text_termination | max_msg_termination
+        termination_condition = max_msg_termination
 
         team = RoundRobinGroupChat(
             participants=participants,
@@ -149,7 +155,7 @@ class ProducerTeamFactory_interaction:
 
 class ProducerAgentFactory:
     @staticmethod
-    def create_agent(company: Company, model_client) -> AssistantAgent:
+    def create_agent(company: Company) -> AssistantAgent:
         """
         根据公司信息创建 Producer Agent
         """
@@ -172,6 +178,8 @@ class ProducerAgentFactory:
         - decision: "ACCEPT" 或 "REJECT"
         - reason: 简短的决策理由 (如果拒绝，请说明具体原因)
         """
+        model_client = MODEL_CLIENT
+        json_model_client = JSON_MODEL_CLIENT
         
         return AssistantAgent(
             name=f"Producer_SA_{company.company_id}",

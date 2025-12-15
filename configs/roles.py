@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass, field
+from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Set
 from enum import Enum, IntEnum
 from datetime import datetime
@@ -21,12 +22,15 @@ class StrategicPlan:
     quarterly_plan: str = ""    
     monthly_plan: str = ""
 
-@dataclass
-class ActiveProject:
-    project_id: str          
-    project_content: str       
-    type: str            
-    tags: List[str] = field(default_factory=list) 
+class ActiveProject(BaseModel):
+    project_id: str = Field(..., description="项目唯一标识符")  
+    project_content: str = Field(..., description="项目详细需求")
+    type: str = Field(..., description="项目类型(例如 WebDev、AI)")      
+    tags: List[str] = Field(default_factory=list, description="所需技术标签")
+
+class ProducerDecision(BaseModel):
+    decision: str = Field(..., description="ACCEPT or REJECT")
+    reason: str = Field(..., description="决定的详细理由")
 
 class Company:
     def __init__(self, 
@@ -51,26 +55,29 @@ class Company:
     def __repr__(self):
         return f"<Company {self.name} ({self.role.value})>"
 
+# Initialization Roles
+class CompanyInfo(BaseModel):
+    tags: List[str] = Field(..., description="公司标签")
+    strategy_content: str = Field(..., description="完整的战略发展规划内容...")
+    current_role: CompanyRole = Field(..., description="当前角色, 例如 'Demander' 或 'Producer'")
 
 # Interaction Roles
-@dataclass  
-class ProducerProposal:
+class ProducerProposal(BaseModel):
     """Producer 交付方案结构 (对应 JSON 输出)"""
-    version: int
-    technical_design: str      # 技术架构设计
-    feature_list: List[str]    # 功能点列表
-    implementation_plan: str   # 实施计划
-    timeline: str              # 时间线
-    risk_analysis: str         # 风险分析
+    version: int = Field(..., description="当前轮版本")
+    technical_design: str = Field(..., description="技术实施细节")      # 技术架构设计
+    feature_list: List[str] = Field(..., description="待交付功能列表")    # 功能点列表
+    implementation_plan: str = Field(..., description="实施计划")   # 实施计划
+    timeline: str = Field(..., description="时间线")            # 时间线
+    risk_analysis: str = Field(..., description="风险分析")         # 风险分析
 
-@dataclass
-class DemanderReview:
+class DemanderReview(BaseModel):
     """Demander 审阅报告结构 (对应 JSON 输出)"""
-    overall_satisfaction: str  # "accepted" / "needs_major_revision" / "needs_minor_revision"
-    weaknesses: List[str]      # 方案缺陷
-    additional_requirements: List[str]  # 新增需求
-    revision_priority: List[str]        # 修改优先级
-    expected_improvements: str          # 期望改进方向
+    overall_satisfaction: str = Field(..., description="Options: 'accepted' / 'needs_major_revision' / 'needs_minor_revision'")  # "accepted" / "needs_major_revision" / "needs_minor_revision"
+    weaknesses: List[str] = Field(..., description="方案缺陷")      # 方案缺陷
+    additional_requirements: List[str] = Field(..., description="新增需求")  # 新增需求
+    revision_priority: List[str] = Field(..., description="修改优先级")        # 修改优先级
+    expected_improvements: str = Field(..., description="期望改进方向")         # 期望改进方向
 
 @dataclass
 class InteractionRound:
