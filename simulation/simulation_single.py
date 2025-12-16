@@ -1,32 +1,18 @@
 import argparse
-import sys
 import json
 import os
-import re
-import jieba
 import traceback
-import autogen
 import time
-import datetime
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Set, Any
 from enum import Enum, IntEnum
 
 import asyncio
-from autogen_agentchat.messages import TextMessage
-from autogen_core import CancellationToken
 
 from utils import extract_json
 from api import MODEL_CLIENT
 from configs.roles import *
-from group.agents.assistant_agent import AssistantAgent
-from autogen_ext.models.openai import OpenAIChatCompletionClient
-from core.teams.company_demander import DemanderTeamFactory_interaction
-from core.teams.company_producer import ProducerTeamFactory_interaction
-from core.teams.company_demander import DemanderTeamFactory_match
-from core.teams.company_producer import ProducerTeamFactory_match
 
-from phase_initialization import async_create_company_instance
 from phase_initialization import async_create_companies_list
 from phase_match import phase1_workflow
 from phase_interaction import phase2_workflow

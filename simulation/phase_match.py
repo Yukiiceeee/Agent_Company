@@ -215,8 +215,9 @@ class phase1_workflow:
                 project_content=project_data.get("project_content", ""),
                 type=project_data.get("type", "General"),
                 tags=project_data.get("tags", []),
+                weeks=project_data.get("weeks", 5),
             )
-            print(f"   📝 [Project Ready] {demander.name}: {project.tags}")
+            print(f"   📝 [Project Ready] {demander.name}: {project.tags}, {project.weeks} weeks")
             logger.log_success(f"Project Generated: {project.tags}")
             return project
             
@@ -254,88 +255,88 @@ class phase1_workflow:
         
         print(f"      ✅ {demander.name} received {len(accepted_results)} offers. Chose: {best_match['producer_name']}")
         return best_match
-    
 
 
 
-    async def _process_demander_proposal_demo(self, demander: Company) -> ActiveProject:
-        try:
-            demander_team = DemanderTeamFactory_match.create_team(demander)
-            plan_input = f"Current Strategy Plan: {demander.strategy.content}"
+    # async def _process_demander_proposal_demo(self, demander: Company) -> ActiveProject:
+    #     try:
+    #         demander_team = DemanderTeamFactory_match.create_team(demander)
+    #         plan_input = f"Current Strategy Plan: {demander.strategy.content}"
             
-            result = await demander_team.run(task=plan_input)
+    #         result = await demander_team.run(task=plan_input)
             
-            last_message_content = result.messages[-1].content
-            self.logger.log_step("Demander Team Discussion", demander.name, last_message_content)
-            clean_content = last_message_content.replace("TERMINATE", "").strip()
-            project_data = extract_json(clean_content)
+    #         last_message_content = result.messages[-1].content
+    #         self.logger.log_step("Demander Team Discussion", demander.name, last_message_content)
+    #         clean_content = last_message_content.replace("TERMINATE", "").strip()
+    #         project_data = extract_json(clean_content)
             
-            if not project_data:
-                raise ValueError("JSON parsing failed")
+    #         if not project_data:
+    #             raise ValueError("JSON parsing failed")
 
-            project = ActiveProject(
-                project_id=project_data.get("project_id", f"{demander.company_id}_{datetime.now().timestamp()}"),
-                project_content=project_data.get("project_content", ""),
-                type=project_data.get("type", "General"),
-                tags=project_data.get("tags", []),
-            )
-            print(f"   📝 Generated Project: [{project.project_id}] {project.tags}")
-            return project
+    #         project = ActiveProject(
+    #             project_id=project_data.get("project_id", f"{demander.company_id}_{datetime.now().timestamp()}"),
+    #             project_content=project_data.get("project_content", ""),
+    #             type=project_data.get("type", "General"),
+    #             tags=project_data.get("tags", []),
+    #         )
+    #         print(f"   📝 Generated Project: [{project.project_id}] {project.tags}")
+    #         return project
             
-        except Exception as e:
-            print(f"   ❌ Error generating proposal for {demander.name}: {e}")
-            self.logger.log_step("Error", demander.name, str(e))
-            return None
+    #     except Exception as e:
+    #         print(f"   ❌ Error generating proposal for {demander.name}: {e}")
+    #         self.logger.log_step("Error", demander.name, str(e))
+    #         return None
 
-    async def _process_producer_bidding_demo(self, demander: Company, project: ActiveProject, candidates: List[Dict]):
-        match_found = False
+    # async def _process_producer_bidding_demo(self, demander: Company, project: ActiveProject, candidates: List[Dict]):
+    #     match_found = False
         
-        for cand in candidates:
-            # 【待完善】这里暂时写的是只匹配第一个，假设已经匹配到，那么直接break就用这个匹配到的producer
-            if match_found: 
-                break
+    #     for cand in candidates:
+    #         # 【待完善】这里暂时写的是只匹配第一个，假设已经匹配到，那么直接break就用这个匹配到的producer
+    #         if match_found: 
+    #             break
             
-            producer = cand["company"]
-            score = cand["total_score"]
-            print(f"   👉 Asking Candidate: {producer.name} (Matched Score: {score})")
+    #         producer = cand["company"]
+    #         score = cand["total_score"]
+    #         print(f"   👉 Asking Candidate: {producer.name} (Matched Score: {score})")
             
-            producer_team = ProducerTeamFactory_match.create_team(producer)
+    #         producer_team = ProducerTeamFactory_match.create_team(producer)
             
-            rfp_message = json.dumps({
-                "project_content": project.project_content,
-                "required_tags": project.tags,
-            }, ensure_ascii=False)
-            rfp_input = f"New RFP Received: {rfp_message}"
+    #         rfp_message = json.dumps({
+    #             "project_content": project.project_content,
+    #             "required_tags": project.tags,
+    #         }, ensure_ascii=False)
+    #         rfp_input = f"New RFP Received: {rfp_message}"
             
-            try:
-                result = await producer_team.run(task=rfp_input)
-                p_content = result.messages[-1].content
-                self.logger.log_step("Producer Team Decision", producer.name, p_content)
-                clean_content = p_content.replace("TERMINATE", "").strip()
-                decision_data = extract_json(clean_content)
+    #         try:
+    #             result = await producer_team.run(task=rfp_input)
+    #             p_content = result.messages[-1].content
+    #             self.logger.log_step("Producer Team Decision", producer.name, p_content)
+    #             clean_content = p_content.replace("TERMINATE", "").strip()
+    #             decision_data = extract_json(clean_content)
                 
-                if decision_data.get("decision") == "ACCEPT":
-                    reason = decision_data.get('reason')
-                    print(f"      ✅ ACCEPTED! Reason: {reason}")
+    #             if decision_data.get("decision") == "ACCEPT":
+    #                 reason = decision_data.get('reason')
+    #                 print(f"      ✅ ACCEPTED! Reason: {reason}")
                     
-                    self.matched_list.append({
-                        "demander_id": demander.company_id,
-                        "demander_name": demander.name,
-                        "producer_id": producer.company_id,
-                        "producer_name": producer.name,
-                        "project": project.__dict__,
-                        "match_reason": reason
-                    })
-                    # 在这里匹配完成，将match_found设为True
-                    # 【待完善】可以在这里把 producer 状态改为 BUSY，后续多轮交互逻辑使用
-                    # 【待完善】这里并没有实现“产品交付天数”的设定，后续可以在初步生成需求时加上完成天数预估
-                    match_found = True
-                else:
-                    print(f"      ❌ REJECTED. Reason: {decision_data.get('reason')}")
+    #                 self.matched_list.append({
+    #                     "demander_id": demander.company_id,
+    #                     "demander_name": demander.name,
+    #                     "producer_id": producer.company_id,
+    #                     "producer_name": producer.name,
+    #                     "project": project.__dict__,
+    #                     "match_reason": reason
+    #                 })
+    #                 # 在这里匹配完成，将match_found设为True
+    #                 # 【待完善】可以在这里把 producer 状态改为 BUSY，后续多轮交互逻辑使用
+    #                 # 【待完善】这里并没有实现“产品交付天数”的设定，后续可以在初步生成需求时加上完成天数预估
+    #                 match_found = True
+    #             else:
+    #                 print(f"      ❌ REJECTED. Reason: {decision_data.get('reason')}")
                     
-            except Exception as e:
-                print(f"      ⚠️ Error parsing producer response: {e}")
-                self.logger.log_step("Error", producer.name, str(e))
+    #         except Exception as e:
+    #             print(f"      ⚠️ Error parsing producer response: {e}")
+    #             self.logger.log_step("Error", producer.name, str(e))
+
 
 if __name__ == "__main__":
     # 【待完善】这里应该是初始化阶段把所有Company定义好，然后统一传入

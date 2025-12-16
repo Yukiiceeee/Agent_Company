@@ -11,9 +11,8 @@ class CompanyRole(Enum):
     USER = "User"
 
 class CompanyState(Enum):
-    IDLE = "Idle"    
-    BUSY = "Busy"     
-    OTHER = "Other"   
+    IDLE = "idle"     
+    BUSY = "busy"
 
 @dataclass
 class StrategicPlan:
@@ -27,7 +26,7 @@ class ActiveProject(BaseModel):
     project_content: str = Field(..., description="项目详细需求")
     type: str = Field(..., description="项目类型(例如 WebDev、AI)")      
     tags: List[str] = Field(default_factory=list, description="所需技术标签")
-    # weeks: int = Field(..., description="项目所需时间(周)")
+    weeks: int = Field(..., description="项目所需时间(周)")
 
 class ProducerDecision(BaseModel):
     decision: str = Field(..., description="ACCEPT or REJECT")
@@ -52,6 +51,11 @@ class Company:
         self.tags: List[str] = tags
         self.strategy: StrategicPlan = strategy
         self.state: CompanyState = state
+        self.busy_until: int = 0
+        self.project_history = []
+        
+    def is_idle(self, current_week: int) -> bool:
+            return self.state == CompanyState.IDLE or (self.state == CompanyState.BUSY and current_week >= self.busy_until)
 
     def __repr__(self):
         return f"<Company {self.name} ({self.role.value})>"
@@ -59,6 +63,9 @@ class Company:
 # Initialization Roles
 class CompanyInfo(BaseModel):
     tags: List[str] = Field(..., description="公司标签")
+    strategy_content: str = Field(..., description="完整的战略发展规划内容...")
+    current_role: CompanyRole = Field(..., description="当前角色, 例如 'Demander' 或 'Producer'")
+class CompanyRefreshInfo(BaseModel):
     strategy_content: str = Field(..., description="完整的战略发展规划内容...")
     current_role: CompanyRole = Field(..., description="当前角色, 例如 'Demander' 或 'Producer'")
 
